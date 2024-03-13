@@ -16,21 +16,6 @@ import java.util.Queue;
 
 public class FileCompressor {
 	
-	static class Node{
-		byte data;
-		int freq;
-		Node left;
-		Node right;
-		Node(byte data, int freq){
-			this.data=data;
-			this.freq=freq;
-		}
-		@Override
-		public String toString() {
-			return "Node [data=" + data + ", freq=" + freq + ", left=" + left + ", right=" + right + "]";
-		}
-	}
-	
 	public static void dfs(Node curr, StringBuilder path, Map<Byte, String> encoderMap, Map<String, Byte> decoderMap) {
         if(curr.left==null && curr.right==null){
         	encoderMap.put(curr.data, path.toString());
@@ -71,6 +56,7 @@ public class FileCompressor {
 			q.add(new Node(itr.getKey(), itr.getValue()));
 		}
 		
+		// Huffman encoding algorithm
 		while(q.size()>1) {
 			Node a=q.poll();
 			Node b=q.poll();
@@ -79,18 +65,24 @@ public class FileCompressor {
 			c.right=b;
 			q.add(c);
 		}
+		
+		// Traversing the huffman tree
 		dfs(q.poll(), new StringBuilder(), encoderMap, decoderMap);
 
 		StringBuilder encodedMessage=new StringBuilder();
 		for(byte b: bytes) {
 			encodedMessage.append(encoderMap.get(b));
 		}
+		
+		// Appending extra zeros so that the entire string can be divided into equal chunks of 7
 		int[] extraZeros= {0};
 		while(encodedMessage.length()%7!=0) {
 			encodedMessage.append("0");
 			extraZeros[0]++;
 		}
 		int len=encodedMessage.length()/7;
+		
+		// New byte array to store the 01 string efficiently
 		byte[] compressedData=new byte[len];
 		int j=0;
 		for(int i=0; i<encodedMessage.length(); i+=7) {
@@ -99,6 +91,7 @@ public class FileCompressor {
 			compressedData[j++]=(byte)val;
 		}
 		
+		// Serializing three things- compressedData, extraZeros & decoderMap
 		OutputStream outputStream=new FileOutputStream(dest);
 		ObjectOutputStream objectOutputStream=new ObjectOutputStream(outputStream);
 		objectOutputStream.writeObject(compressedData);
@@ -107,29 +100,33 @@ public class FileCompressor {
 		objectOutputStream.close();
 		outputStream.close();
 		inputStream.close();
+		
+		System.out.println("Encoding done.");
 	}
 	
 	public static void decode(String src, String dest) throws ClassNotFoundException, IOException {
 		InputStream inputStream=new FileInputStream(src);
 		ObjectInputStream objectInputStream=new ObjectInputStream(inputStream);
 		
+		// Retrieving the objects by means of Deserialization
 		byte[] bytes=(byte[])objectInputStream.readObject();
 		int[] extraZeros=(int[])objectInputStream.readObject();
 		@SuppressWarnings("unchecked")
 		Map<String, Byte> decoderMap=(Map<String, Byte>)objectInputStream.readObject();
 
-		
 		StringBuilder sb=new StringBuilder();
 		for(byte b: bytes) {
 			String s = String.format("%7s", Integer.toBinaryString(b & 0x7F)).replace(' ', '0');
 			sb.append(s);
 		}
 		
+		// Deleting extra zeros from behind
 		while(extraZeros[0]>0) {
 			sb.deleteCharAt(sb.length()-1);
 			extraZeros[0]--;
 		}
 
+		// Decoding part-If a binary pattern exists in the decoder map, append its character value
 		int prev=0;
 		StringBuilder ans=new StringBuilder();
 		for(int i=0; i<sb.length(); i++) {
@@ -146,5 +143,7 @@ public class FileCompressor {
 		outputStream.close();
 		inputStream.close();
 		objectInputStream.close();
+		
+		System.out.println("Decoding done.");
 	}
 }
